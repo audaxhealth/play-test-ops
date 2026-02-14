@@ -38,7 +38,7 @@ jobs:
         run: python scanner.py "${{ github.event.inputs.targets }}" wordlist.txt
       
       - name: Upload results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: scan-results
@@ -48,5 +48,6 @@ jobs:
         if: always()
         run: |
           if [ -f results.json ]; then
+            echo "=== Scan Results ==="
             cat results.json
           fi
